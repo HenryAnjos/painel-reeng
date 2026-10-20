@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Shell from "./nav";
 import Icon from "./icons";
+import { api, Vazio } from "./ui";
 
 const TZ = "America/Sao_Paulo";
 const diaCurto = (iso) =>
@@ -59,25 +60,19 @@ function Tile({ cor, icon, label, value, foot }) {
   );
 }
 
-function Vazio({ icon, children }) {
-  return (
-    <div className="empty">
-      <Icon name={icon} size={28} />
-      <div>{children}</div>
-    </div>
-  );
-}
-
-const COR_STATUS = { enviado: "c-ok", erro: "c-err", flood: "c-err", peer_flood: "c-err" };
+const COR_STATUS = {
+  enviado: "c-ok", erro: "c-err", flood: "c-err", peer_flood: "c-err",
+  nao_resolvido: "c-warn", bloqueado: "c-warn", sem_sessao: "c-warn", pausado: "c-warn",
+};
 
 export default function Dashboard() {
   const [s, setS] = useState(null);
   const [ultimos, setUltimos] = useState(null);
 
   async function carregar() {
-    const [a, b] = await Promise.all([fetch("/api/stats"), fetch("/api/logs")]);
-    setS(await a.json());
-    setUltimos((await b.json()).slice(0, 7));
+    const [a, b] = await Promise.all([api("/api/stats"), api("/api/logs?por=7")]);
+    setS(a);
+    setUltimos(b.rows);
   }
   useEffect(() => {
     carregar();
@@ -88,7 +83,6 @@ export default function Dashboard() {
   const h = s?.hoje;
   const n = (v) => (s ? v : "…");
   const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-  const semana = s ? s.serie.reduce((a, d) => a + d.enviados, 0) : 0;
 
   return (
     <Shell
@@ -114,7 +108,7 @@ export default function Dashboard() {
             <div>
               <div className="big">{n(h?.enviados)}</div>
               <div className="big-sub">
-                {s ? <><b>{h.telegram}</b> telegram · <b>{h.email}</b> e-mail · <b>{semana}</b> na semana</> : " "}
+                {s ? <><b>{h.telegram}</b> telegram · <b>{h.email}</b> e-mail · <b>{s.mes}</b> no mês</> : " "}
               </div>
             </div>
             {s && <Barras serie={s.serie} />}
@@ -164,7 +158,7 @@ export default function Dashboard() {
           {ultimos && ultimos.length > 0 && (
             <div className="list feed">
               {ultimos.map((r) => (
-                <div className={`list-row ${COR_STATUS[r.status] || "c-warn"}`} key={r.id}>
+                <div className={`list-row ${COR_STATUS[r.status] || ""}`} key={r.id}>
                   <span className="mono muted" style={{ fontSize: 11.5 }}>{hora(r.criado_em)}</span>
                   <span className="grow">{r.expert} <span className="muted">→ {r.canal === "email" ? r.email : (r.username || r.user_id)}</span></span>
                   <span className={`pill ${r.status}`}>{r.status}</span>

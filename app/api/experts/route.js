@@ -1,21 +1,42 @@
 import { NextResponse } from "next/server";
-import { sbSelect, sbInsert } from "../../../lib/supabase";
+import { sbSelect, sbInsert, sbCount } from "../../../lib/supabase";
+import { contexto, erro } from "../../../lib/auth";
+import { plano } from "../../../lib/planos";
+import { CAMPOS_LISTA, exibir } from "../../../lib/experts";
 
 export async function GET() {
-  const rows = await sbSelect("experts", "select=*&order=id.asc");
-  return NextResponse.json(rows);
+  const c = await contexto();
+  if (c.erro) return c.erro;
+  const rows = await sbSelect("experts", {
+    workspace_id: `eq.${c.workspace.id}`, select: `${CAMPOS_LISTA},session_string`, order: "id.asc",
+  });
+  return NextResponse.json(rows.map(exibir));
 }
 
 export async function POST(req) {
+  const c = await contexto("admin");
+  if (c.erro) return c.erro;
   const body = await req.json();
-  const data = {
-    slug: body.slug,
-    nome: body.nome || body.slug,
-    texto: body.texto || null,
-    ativo: body.ativo ?? true,
-    canal_telegram: body.canal_telegram ?? true,
-    canal_email: body.canal_email ?? true,
-  };
-  const row = await sbInsert("experts", data);
-  return NextResponse.json(row[0]);
+  const slug = String(body.slug || "").trim();
+  if (!slug) return erro(400, "Informe o slug");
+
+  const ws = c.workspace.id;
+  const lim = plano(c.workspace.plano).experts;
+  if ((await sbCount("experts", { workspace_id: `eq.${ws}` })) >= lim) {
+    return erro(402, `Seu plano permite até ${lim} experts. Faça upgrade para adicionar mais.`);
+  }
+  try {
+    const [row] = await sbInsert("experts", {
+      workspace_id: ws,
+      slug,
+      nome: body.nome || slug,
+      ativo: true,
+      canal_telegram: true,
+      canal_email: true,
+    });
+    return NextResponse.json(exibir(row));
+  } catch (e) {
+    if (e.code === "23505") return erro(409, "Já existe um expert com este slug");
+    throw e;
+  }
 }

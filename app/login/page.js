@@ -1,54 +1,43 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Icon from "../icons";
-import { Marca } from "../nav";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import AuthLayout, { Campo } from "../auth-layout";
+import { api, limparMe } from "../ui";
 
 export default function Login() {
-  const [senha, setSenha] = useState("");
+  const [f, setF] = useState({ email: "", senha: "" });
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const router = useRouter();
+
+  // primeiro acesso do sistema: manda para o setup
+  useEffect(() => {
+    api("/api/auth/setup").then((d) => d.pendente && (location.href = "/setup")).catch(() => {});
+  }, []);
 
   async function entrar(e) {
     e.preventDefault();
     setCarregando(true);
     setErro("");
-    const r = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senha }),
-    });
-    setCarregando(false);
-    if (r.ok) {
-      router.push("/");
-    } else {
-      setErro("Senha incorreta");
+    try {
+      await api("/api/auth/login", { method: "POST", body: f });
+      limparMe();
+      location.href = "/";
+    } catch (x) {
+      setErro(x.message);
+      setCarregando(false);
     }
   }
 
   return (
-    <div className="login-page">
-    <div className="login">
-      <Marca />
-      <div className="login-tag">// trazendo leads de volta</div>
-    <div className="card">
-      <div className="card-title"><Icon name="lock" size={14} />Acesso ao painel</div>
+    <AuthLayout titulo="acesso ao painel" rodape={<>Ainda não tem conta? <Link href="/cadastro">Criar conta</Link></>}>
       <form onSubmit={entrar}>
-        <label>Senha</label>
-        <input
-          type="password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          autoFocus
-        />
-        <div style={{ marginTop: 16 }}>
-          <button disabled={carregando} style={{ width: "100%", justifyContent: "center" }}>{carregando ? "..." : "Entrar"}</button>
-        </div>
+        <Campo label="E-mail" type="email" autoComplete="email" autoFocus value={f.email}
+          onChange={(e) => setF({ ...f, email: e.target.value })} />
+        <Campo label="Senha" type="password" autoComplete="current-password" value={f.senha}
+          onChange={(e) => setF({ ...f, senha: e.target.value })} />
+        <button disabled={carregando} className="full" style={{ marginTop: 18 }}>{carregando ? "Entrando…" : "Entrar"}</button>
         {erro && <div className="msg err" style={{ marginTop: 10 }}>{erro}</div>}
       </form>
-    </div>
-    </div>
-    </div>
+    </AuthLayout>
   );
 }
