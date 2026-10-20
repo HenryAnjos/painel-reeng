@@ -14,7 +14,57 @@ const STATUS = [
   ["flood / peer_flood", "o Telegram limitou a conta: o motor pausa sozinho"],
 ];
 
+const ABAS = [["direto", "CRM direto"], ["n8n", "Via n8n"], ["email", "E-mail"], ["teste", "Testar (curl)"]];
+
+const CORPO_CRM = `{
+  "evento": "bot_bloqueado",
+  "expert": "Professor",
+  "user_id": "{{User Id}}",
+  "username": "{{User Name}}",
+  "nome": "{{First Name}}"
+}`;
+
+const CORPO_N8N = `{
+  "expert": "{{ $json.body.expert }}",
+  "user_id": "{{ $json.body.user_id }}",
+  "username": "{{ $json.body.username }}",
+  "nome": "{{ $json.body.nome }}"
+}`;
+
+const CORPO_EMAIL = `{
+  "expert": "Professor",
+  "email": "{{Email}}"
+}`;
+
+function Passo({ n, titulo, children }) {
+  return (
+    <div className="passo">
+      <div className="passo-t"><span className="passo-n">{n}</span>{titulo}</div>
+      {children}
+    </div>
+  );
+}
+
+function Linha({ texto }) {
+  return (
+    <div className="linha">
+      <span className="mono">{texto}</span>
+      <Copiar texto={texto} />
+    </div>
+  );
+}
+
+function Bloco({ texto }) {
+  return (
+    <div style={{ position: "relative" }}>
+      <div className="code">{texto}</div>
+      <div style={{ position: "absolute", top: 8, right: 8 }}><Copiar texto={texto} /></div>
+    </div>
+  );
+}
+
 export default function Integracao() {
+  const [aba, setAba] = useState("direto");
   const [ws, setWs] = useState(null);
   const [nova, setNova] = useState("");
   const [msg, setMsg] = useState(null);
@@ -35,10 +85,10 @@ export default function Integracao() {
   }
 
   const base = ws?.motor_url || "https://SEU-MOTOR";
-  const chave = nova || (ws?.api_key_prefixo ? `${ws.api_key_prefixo}…` : "SUA_CHAVE");
+  const chave = nova || "SUA_CHAVE";
 
   return (
-    <Shell title="Integração" subtitle="Ligue o DigoChat / n8n ao motor de envio">
+    <Shell title="Integração" subtitle="Ligue o DigoChat ou qualquer CRM ao motor de envio">
       <div className="grid2">
         <div className="card">
           <div className="card-title"><Icon name="key" size={14} />chave de api</div>
@@ -83,28 +133,73 @@ export default function Integracao() {
       </div>
 
       <div className="card">
-        <div className="card-title"><Icon name="send" size={14} />n8n · nó http request — telegram</div>
-        <div className="code">{`POST ${base}/send
-x-api-key: ${chave}
-Content-Type: application/json
+        <div className="card-title"><Icon name="send" size={14} />como chamar o motor</div>
+        <div className="tabs">
+          {ABAS.map(([id, nome]) => (
+            <button key={id} type="button" className={aba === id ? "on" : ""} onClick={() => setAba(id)}>{nome}</button>
+          ))}
+        </div>
 
-{
-  "expert": "{{ $json.body.expert }}",
-  "user_id": "{{ $json.body.user_id }}",
-  "username": "{{ $json.body.username }}"
-}`}</div>
-      </div>
-      <div className="card">
-        <div className="card-title"><Icon name="mail" size={14} />n8n · nó http request — e-mail</div>
-        <div className="code">{`POST ${base}/send-email
-x-api-key: ${chave}
-Content-Type: application/json
+        {aba === "direto" && (
+          <>
+            <p className="tab-lead">
+              Para o <b>DigoChat</b> ou qualquer CRM com “External Request” / webhook. O CRM precisa permitir configurar <b>cabeçalhos</b> (para enviar a chave).
+              O CRM chama o motor direto, <b>sem n8n</b>.
+            </p>
+            <Passo n="1" titulo="Método e URL"><Linha texto={`POST ${base}/send`} /></Passo>
+            <Passo n="2" titulo="Cabeçalhos">
+              <Linha texto={`x-api-key: ${chave}`} />
+              <Linha texto="Content-Type: application/json" />
+            </Passo>
+            <Passo n="3" titulo="Corpo (raw / JSON)">
+              <Bloco texto={CORPO_CRM} />
+              <p className="help">
+                Troque <span className="mono">{"{{User Id}}"}</span>, <span className="mono">{"{{User Name}}"}</span> e <span className="mono">{"{{First Name}}"}</span> pelas
+                variáveis do seu CRM. <span className="mono">expert</span> = slug cadastrado em Experts. Campos extras (como <span className="mono">evento</span>) são ignorados.
+              </p>
+            </Passo>
+          </>
+        )}
 
-{
-  "expert": "{{ $json.body.expert }}",
-  "email": "{{ $json.body.email }}"
-}`}</div>
-        <p className="help">O campo <span className="mono">expert</span> precisa ser igual ao slug cadastrado em Experts.</p>
+        {aba === "n8n" && (
+          <>
+            <p className="tab-lead">
+              Se você já usa o n8n no meio (CRM → webhook do n8n → motor). O CRM manda para o webhook do n8n e o
+              n8n repassa ao motor com um nó <b>HTTP Request</b>.
+            </p>
+            <Passo n="1" titulo="No CRM: External Request para o webhook do n8n">
+              <Linha texto="POST https://SEU-N8N/webhook/SEU-ID" />
+              <Bloco texto={CORPO_CRM} />
+            </Passo>
+            <Passo n="2" titulo="No n8n: nó HTTP Request depois do Webhook">
+              <Linha texto={`POST ${base}/send`} />
+              <Linha texto={`x-api-key: ${chave}`} />
+              <Bloco texto={CORPO_N8N} />
+            </Passo>
+          </>
+        )}
+
+        {aba === "email" && (
+          <>
+            <p className="tab-lead">Reengajamento por e-mail. Mesma chave; o texto do expert vira o corpo do e-mail.</p>
+            <Passo n="1" titulo="Método e URL"><Linha texto={`POST ${base}/send-email`} /></Passo>
+            <Passo n="2" titulo="Cabeçalhos">
+              <Linha texto={`x-api-key: ${chave}`} />
+              <Linha texto="Content-Type: application/json" />
+            </Passo>
+            <Passo n="3" titulo="Corpo (raw / JSON)"><Bloco texto={CORPO_EMAIL} /></Passo>
+          </>
+        )}
+
+        {aba === "teste" && (
+          <>
+            <p className="tab-lead">Para testar pelo terminal antes de configurar o CRM.</p>
+            <Bloco texto={`curl -X POST "${base}/send" \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: ${chave}" \\
+  -d '{"expert": "Professor", "user_id": "123456789", "username": "seu_usuario"}'`} />
+          </>
+        )}
       </div>
     </Shell>
   );
