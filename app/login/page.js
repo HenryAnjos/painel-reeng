@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Icon from "../icons";
 
 export default function Login() {
   const [senha, setSenha] = useState("");
@@ -26,8 +27,14 @@ export default function Login() {
   }
 
   return (
-    <div className="login card">
-      <h1>Entrar</h1>
+    <div className="login-page">
+    <div className="login">
+      <div className="brand">
+        <span className="logo"><Icon name="bolt" size={16} /></span>
+        <span>Reeng<b>Experts</b></span>
+      </div>
+    <div className="card">
+      <div className="card-title"><Icon name="lock" size={14} />Acesso ao painel</div>
       <form onSubmit={entrar}>
         <label>Senha</label>
         <input
@@ -37,10 +44,12 @@ export default function Login() {
           autoFocus
         />
         <div style={{ marginTop: 16 }}>
-          <button disabled={carregando}>{carregando ? "..." : "Entrar"}</button>
+          <button disabled={carregando} style={{ width: "100%", justifyContent: "center" }}>{carregando ? "..." : "Entrar"}</button>
         </div>
-        {erro && <div className="msg err">{erro}</div>}
+        {erro && <div className="msg err" style={{ marginTop: 10 }}>{erro}</div>}
       </form>
+    </div>
+    </div>
     </div>
   );
 }

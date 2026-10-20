@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import Nav from "../nav";
+import Shell from "../nav";
+import Icon from "../icons";
 
 export default function Logs() {
   const [rows, setRows] = useState(null);
@@ -22,12 +23,9 @@ export default function Logs() {
   const fmt = (ts) => new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
   return (
-    <>
-      <Nav />
-      <div className="wrap">
-        <h1>Logs de envio</h1>
+    <Shell title="Histórico" subtitle="Últimos 200 envios registrados pelo motor">
         <div className="card">
-          <div className="row">
+          <div className="filters">
             <input placeholder="expert" value={fExpert} onChange={(e) => setFExpert(e.target.value)} />
             <select value={fCanal} onChange={(e) => setFCanal(e.target.value)}>
               <option value="">canal (todos)</option>
@@ -35,13 +33,14 @@ export default function Logs() {
               <option value="email">email</option>
             </select>
             <input placeholder="status" value={fStatus} onChange={(e) => setFStatus(e.target.value)} />
-            <button onClick={carregar}>Filtrar</button>
+            <button onClick={carregar}><Icon name="refresh" size={14} />Filtrar</button>
           </div>
         </div>
         <div className="card">
           {!rows && <p className="muted">Carregando...</p>}
           {rows && rows.length === 0 && <p className="muted">Nenhum registro.</p>}
           {rows && rows.length > 0 && (
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr><th>Quando</th><th>Expert</th><th>Canal</th><th>Destino</th><th>Status</th><th>Detalhe</th></tr>
@@ -50,7 +49,7 @@ export default function Logs() {
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td className="muted">{fmt(r.criado_em)}</td>
-                    <td>{r.expert}</td>
+                    <td className="mono">{r.expert}</td>
                     <td>{r.canal}</td>
                     <td>{r.canal === "email" ? r.email : (r.username || r.user_id)}</td>
                     <td><span className={`pill ${r.status}`}>{r.status}</span></td>
@@ -59,9 +58,9 @@ export default function Logs() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
-      </div>
-    </>
+    </Shell>
   );
 }

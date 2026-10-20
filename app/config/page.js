@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../nav";
+import Shell from "../nav";
+import Icon from "../icons";
 
 export default function Config() {
   const [c, setC] = useState(null);
@@ -32,39 +33,37 @@ export default function Config() {
     setMsg(r.ok ? "Salvo" : "Erro ao salvar");
   }
 
-  if (!c) return (<><Nav /><div className="wrap"><p className="muted">Carregando...</p></div></>);
+  if (!c) return (<Shell title="Configurações"><p className="muted">Carregando...</p></Shell>);
 
   return (
-    <>
-      <Nav />
-      <div className="wrap">
-        <h1>Configuração</h1>
+    <Shell title="Configurações" subtitle="Regras globais do motor de envio">
+      <div className="grid2">
         <div className="card">
-          <h2>Disparo</h2>
+          <div className="card-title"><Icon name="send" size={14} />Disparo</div>
           <label>Espera antes de enviar (minutos, 0 = imediato)</label>
           <input value={c.espera_minutos ?? 0} onChange={(e) => set("espera_minutos", e.target.value)} />
           <label>Janela de deduplicação (horas, 24 = 1x por dia)</label>
           <input value={c.dedup_horas ?? 24} onChange={(e) => set("dedup_horas", e.target.value)} />
         </div>
         <div className="card">
-          <h2>Ritmo por conta</h2>
+          <div className="card-title"><Icon name="activity" size={14} />Ritmo por conta</div>
           <label>Limite diário de envios</label>
           <input value={c.limite_diario ?? 40} onChange={(e) => set("limite_diario", e.target.value)} />
           <label>Intervalo mínimo entre envios (segundos)</label>
           <input value={c.intervalo_min ?? 20} onChange={(e) => set("intervalo_min", e.target.value)} />
         </div>
         <div className="card">
-          <h2>E-mail</h2>
+          <div className="card-title"><Icon name="mail" size={14} />E-mail</div>
           <label>Remetente</label>
           <input value={c.email_remetente || ""} onChange={(e) => set("email_remetente", e.target.value)} />
           <label>Assunto</label>
           <input value={c.email_assunto || ""} onChange={(e) => set("email_assunto", e.target.value)} />
         </div>
+      </div>
         <div className="row">
           <button onClick={salvar} disabled={salvando}>{salvando ? "..." : "Salvar"}</button>
           {msg && <span className={`msg ${msg === "Salvo" ? "ok" : "err"}`}>{msg}</span>}
         </div>
-      </div>
-    </>
+    </Shell>
   );
 }
