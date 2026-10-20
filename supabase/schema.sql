@@ -68,6 +68,15 @@ create table if not exists experts (
 );
 alter table experts add column if not exists workspace_id uuid references workspaces(id) on delete cascade;
 alter table experts add column if not exists criado_em timestamptz not null default now();
+-- sequencia de mensagens do Telegram: [{tipo, texto, arquivo|url, nome}]
+-- tipo: texto | imagem | video | audio | voz | arquivo. Vazia = formato
+-- antigo (audio_url como voz + texto). O e-mail continua usando "texto".
+alter table experts add column if not exists mensagens jsonb not null default '[]'::jsonb;
+
+-- arquivos das mensagens (privado: so o painel e o motor, com a service_role)
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('midias', 'midias', false, 52428800)
+on conflict (id) do nothing;
 
 -- ---------- envios (log) ----------
 create table if not exists envios (

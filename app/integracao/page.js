@@ -6,7 +6,8 @@ import Link from "next/link";
 import { api, Copiar, Msg, dialogo, useMe } from "../ui";
 
 const STATUS = [
-  ["enviado", "áudio + texto entregues"],
+  ["enviado", "mensagens do expert entregues"],
+  ["sem_conteudo", "o expert não tem mensagens configuradas"],
   ["duplicado", "já recebeu dentro da janela de deduplicação"],
   ["nao_resolvido", "sem username e sem grupo em comum: não achou o lead"],
   ["bloqueado", "a privacidade do lead impede o envio"],

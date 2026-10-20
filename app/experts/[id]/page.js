@@ -136,6 +136,122 @@ function ConectarTelegram({ id, conectado, onConectado }) {
   );
 }
 
+// Sequencia de mensagens do Telegram: cada item e um texto ou uma midia
+// (com legenda). Midia sobe direto para o Storage por URL assinada.
+const TIPOS = [
+  ["texto", "Texto", ""],
+  ["imagem", "Imagem", "image/*"],
+  ["video", "Vídeo", "video/*"],
+  ["audio", "Áudio (música)", "audio/*"],
+  ["voz", "Mensagem de voz", "audio/ogg,.ogg,.oga,.opus,audio/*"],
+  ["arquivo", "Arquivo", ""],
+];
+const MAX_MSGS = 10;
+const MAX_MB = 50;
+
+// formato antigo (audio_url + texto) vira a sequencia equivalente
+function sequenciaInicial(e) {
+  if (e.mensagens?.length) return e.mensagens;
+  const lista = [];
+  if (e.audio_url) lista.push({ tipo: "voz", url: e.audio_url, texto: "" });
+  if (e.texto) lista.push({ tipo: "texto", texto: e.texto });
+  return lista;
+}
+
+function Mensagem({ id, m, n, total, onChange, onMover, onRemover }) {
+  const [subindo, setSubindo] = useState(false);
+  const [erroUp, setErroUp] = useState("");
+  const tipo = TIPOS.find((t) => t[0] === m.tipo) || TIPOS[0];
+
+  async function subir(file) {
+    if (!file) return;
+    setErroUp("");
+    if (file.size > MAX_MB * 1024 * 1024) { setErroUp(`Arquivo maior que ${MAX_MB} MB`); return; }
+    setSubindo(true);
+    try {
+      const r = await api(`/api/experts/${id}/midia`, { method: "POST", body: { nome: file.name } });
+      const up = await fetch(r.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" },
+        body: file,
+      });
+      if (!up.ok) throw new Error(`Falha no upload (${up.status})`);
+      onChange({ ...m, arquivo: r.arquivo, nome: file.name, url: undefined });
+    } catch (x) { setErroUp(x.message); }
+    setSubindo(false);
+  }
+
+  return (
+    <div className="msg-item">
+      <div className="row" style={{ gap: 8 }}>
+        <span className="mono muted">{n}</span>
+        <select className="inline" value={m.tipo} onChange={(ev) => onChange({ ...m, tipo: ev.target.value })}>
+          {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="ghost sm" disabled={n === 1} onClick={() => onMover(-1)} title="Subir">↑</button>
+        <button type="button" className="ghost sm" disabled={n === total} onClick={() => onMover(1)} title="Descer">↓</button>
+        <button type="button" className="ghost sm" onClick={onRemover} title="Remover"><Icon name="trash" size={13} /></button>
+      </div>
+
+      {m.tipo !== "texto" && (
+        <>
+          {m.arquivo ? (
+            <div className="row" style={{ marginTop: 10, gap: 8 }}>
+              <span className="mono" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.nome || m.arquivo.split("/").pop()}</span>
+              <button type="button" className="ghost sm" onClick={() => onChange({ ...m, arquivo: undefined, nome: undefined })}>Trocar</button>
+            </div>
+          ) : (
+            <>
+              <label>Arquivo (até {MAX_MB} MB)</label>
+              <input type="file" accept={tipo[2] || undefined} disabled={subindo} onChange={(ev) => subir(ev.target.files[0])} />
+              {subindo && <p className="help">Enviando…</p>}
+              {erroUp && <p className="help" style={{ color: "var(--err)" }}>{erroUp}</p>}
+              <label>ou URL pública</label>
+              <input placeholder="https://…" value={m.url || ""} onChange={(ev) => onChange({ ...m, url: ev.target.value })} />
+            </>
+          )}
+          {m.tipo === "voz" && <p className="help">Para aparecer como mensagem de voz, use .ogg (Opus), como os áudios gravados no próprio Telegram.</p>}
+        </>
+      )}
+
+      <label>{m.tipo === "texto" ? "Texto" : "Legenda (opcional)"}</label>
+      <textarea value={m.texto || ""} onChange={(ev) => onChange({ ...m, texto: ev.target.value })}
+        style={m.tipo === "texto" ? undefined : { minHeight: 60 }} />
+    </div>
+  );
+}
+
+function EditorMensagens({ id, lista, onChange }) {
+  const trocar = (i, novo) => onChange(lista.map((m, j) => (j === i ? novo : m)));
+  const mover = (i, d) => {
+    const nova = [...lista];
+    [nova[i], nova[i + d]] = [nova[i + d], nova[i]];
+    onChange(nova);
+  };
+  return (
+    <>
+      {lista.length === 0 && <p className="help">Nenhuma mensagem ainda. Adicione abaixo: elas são enviadas nesta ordem.</p>}
+      {lista.map((m, i) => (
+        <Mensagem key={i} id={id} m={m} n={i + 1} total={lista.length}
+          onChange={(novo) => trocar(i, novo)}
+          onMover={(d) => mover(i, d)}
+          onRemover={() => onChange(lista.filter((_, j) => j !== i))} />
+      ))}
+      {lista.length < MAX_MSGS && (
+        <button type="button" className="ghost sm" style={{ marginTop: 12 }}
+          onClick={() => onChange([...lista, { tipo: "texto", texto: "" }])}>
+          <Icon name="plus" size={13} />Adicionar mensagem
+        </button>
+      )}
+      <p className="help">
+        Formatação: <span className="mono">**negrito**</span>, <span className="mono">__itálico__</span>,
+        link clicável <span className="mono">[texto do link](https://site.com)</span> e <span className="mono">{"{nome}"}</span> para o primeiro nome do lead.
+      </p>
+    </>
+  );
+}
+
 export default function EditarExpert() {
   const { id } = useParams();
   const router = useRouter();
@@ -147,7 +263,7 @@ export default function EditarExpert() {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    api(`/api/experts/${id}`).then(setE).catch((x) => setMsg({ texto: x.message }));
+    api(`/api/experts/${id}`).then((d) => setE({ ...d, mensagens: sequenciaInicial(d) })).catch((x) => setMsg({ texto: x.message }));
   }, [id]);
 
   function set(campo, valor) { setE({ ...e, [campo]: valor }); }
@@ -162,7 +278,7 @@ export default function EditarExpert() {
           nome: e.nome,
           api_id: e.api_id || null,
           texto: e.texto,
-          audio_url: e.audio_url,
+          mensagens: e.mensagens,
           canal_telegram: e.canal_telegram,
           canal_email: e.canal_email,
           ativo: e.ativo,
@@ -170,7 +286,7 @@ export default function EditarExpert() {
           ...(cred.session_string && { session_string: cred.session_string }),
         },
       });
-      setE(novo);
+      setE({ ...novo, mensagens: sequenciaInicial(novo) });
       setCred({ api_hash: "", session_string: "" });
       setMsg({ ok: true, texto: "Salvo" });
     } catch (x) {
@@ -181,7 +297,8 @@ export default function EditarExpert() {
 
   async function removerSessao() {
     if (!(await dialogo({ titulo: "Desconectar a conta do Telegram?", texto: "O expert para de enviar até ser conectado de novo.", botao: "Desconectar", perigo: true, icone: "logout" }))) return;
-    setE(await api(`/api/experts/${id}`, { method: "PATCH", body: { limpar_sessao: true } }));
+    const novo = await api(`/api/experts/${id}`, { method: "PATCH", body: { limpar_sessao: true } });
+    setE((x) => ({ ...x, tem_sessao: novo.tem_sessao }));
   }
 
   async function excluir() {
@@ -238,11 +355,14 @@ export default function EditarExpert() {
         </div>
         <div>
           <div className="card">
-            <div className="card-title"><Icon name="send" size={14} />conteúdo</div>
-            <label>Texto da mensagem</label>
+            <div className="card-title"><Icon name="send" size={14} />mensagens do telegram</div>
+            <EditorMensagens id={id} lista={e.mensagens || []} onChange={(l) => set("mensagens", l)} />
+          </div>
+
+          <div className="card">
+            <div className="card-title"><Icon name="mail" size={14} />texto do e-mail</div>
             <textarea value={e.texto || ""} onChange={(ev) => set("texto", ev.target.value)} />
-            <label>URL do áudio (.ogg) — opcional</label>
-            <input value={e.audio_url || ""} onChange={(ev) => set("audio_url", ev.target.value)} />
+            <p className="help">Corpo do e-mail de reengajamento.</p>
           </div>
 
           <div className="card">

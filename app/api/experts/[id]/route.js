@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sbSelectOne, sbUpdate, sbDelete } from "../../../../lib/supabase";
 import { contexto, erro } from "../../../../lib/auth";
-import { exibir } from "../../../../lib/experts";
+import { exibir, limparMensagens } from "../../../../lib/experts";
 
 const doWs = (c, id) => ({ id: `eq.${id}`, workspace_id: `eq.${c.workspace.id}` });
 
@@ -20,6 +20,10 @@ export async function PATCH(req, { params }) {
   const data = {};
   for (const k of ["nome", "texto", "audio_url"]) if (b[k] !== undefined) data[k] = b[k] || null;
   for (const k of ["canal_telegram", "canal_email", "ativo"]) if (b[k] !== undefined) data[k] = !!b[k];
+  if (b.mensagens !== undefined) {
+    try { data.mensagens = limparMensagens(b.mensagens, c.workspace.id); }
+    catch (e) { return erro(400, e.message); }
+  }
   if (b.api_id !== undefined) data.api_id = b.api_id ? Number(b.api_id) : null;
   // credenciais: so grava se vier valor novo (o painel nunca recebe as atuais)
   if (b.api_hash) data.api_hash = String(b.api_hash).trim();
