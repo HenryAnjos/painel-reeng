@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import Shell from "../nav";
 import Icon from "../icons";
-import { api, Copiar, Msg, dialogo } from "../ui";
+import Link from "next/link";
+import { api, Copiar, Msg, dialogo, useMe } from "../ui";
 
 const STATUS = [
   ["enviado", "áudio + texto entregues"],
@@ -64,6 +65,7 @@ function Bloco({ texto }) {
 }
 
 export default function Integracao() {
+  const me = useMe();
   const [aba, setAba] = useState("direto");
   const [ws, setWs] = useState(null);
   const [nova, setNova] = useState("");
@@ -89,6 +91,15 @@ export default function Integracao() {
 
   return (
     <Shell title="Integração" subtitle="Ligue o DigoChat ou qualquer CRM ao motor de envio">
+      <div className="alert info">
+        <Icon name="send" size={16} />
+        <span>
+          Esta tela liga o seu <b>CRM</b> ao motor. A <b>conta do Telegram</b> que envia as mensagens é conectada em
+          cada expert (telefone + código do app).
+        </span>
+        <Link href="/experts">Conectar Telegram →</Link>
+      </div>
+
       <div className="grid2">
         <div className="card">
           <div className="card-title"><Icon name="key" size={14} />chave de api</div>
@@ -101,7 +112,9 @@ export default function Integracao() {
               </div>
               <div className="kv">
                 <span>Endereço do motor</span>
-                <span className="mono">{ws.motor_url || "defina MOTOR_URL no painel"}</span>
+                {ws.motor_url
+                  ? <span className="mono">{ws.motor_url}</span>
+                  : <span className="pill sem_sessao">{me?.usuario.admin_plataforma ? "falta a variável MOTOR_URL na Vercel" : "ainda não configurado — fale com o suporte"}</span>}
               </div>
               <div className="row" style={{ marginTop: 14 }}>
                 <button onClick={gerar}><Icon name="refresh" size={14} />{ws.api_key_prefixo ? "Gerar nova chave" : "Gerar chave"}</button>
