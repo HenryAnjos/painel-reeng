@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "../icons";
+import { Marca } from "../nav";
 
 export default function Login() {
   const [senha, setSenha] = useState("");
@@ -29,10 +30,8 @@ export default function Login() {
   return (
     <div className="login-page">
     <div className="login">
-      <div className="brand">
-        <span className="logo"><Icon name="bolt" size={16} /></span>
-        <span>Reeng<b>Experts</b></span>
-      </div>
+      <Marca />
+      <div className="login-tag">// trazendo leads de volta</div>
     <div className="card">
       <div className="card-title"><Icon name="lock" size={14} />Acesso ao painel</div>
       <form onSubmit={entrar}>

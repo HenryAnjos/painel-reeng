@@ -4,29 +4,57 @@ import Link from "next/link";
 import Shell from "./nav";
 import Icon from "./icons";
 
-function Spark({ data }) {
-  if (!data || data.length < 2) return null;
-  const max = Math.max(1, ...data);
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * 86 + 2},${26 - (v / max) * 22}`);
-  const [lx, ly] = pts[pts.length - 1].split(",");
+const TZ = "America/Sao_Paulo";
+const diaCurto = (iso) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: TZ, weekday: "short" }).replace(".", "");
+const dataCurta = (iso) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit" });
+
+function Barras({ serie }) {
+  const max = Math.max(1, ...serie.map((d) => d.enviados));
   return (
-    <svg className="spark" viewBox="0 0 90 28" fill="none">
-      <polyline points={pts.join(" ")} stroke="currentColor" strokeOpacity=".55" strokeWidth="1.5" strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r="2.6" fill="currentColor" />
-    </svg>
+    <div className="bars">
+      {serie.map((d, i) => (
+        <div key={d.dia} className={`b ${i === serie.length - 1 ? "hoje" : ""}`}
+          title={`${diaCurto(d.dia)} ${dataCurta(d.dia)} · ${d.enviados} enviados · ${d.falhas} falhas`}>
+          <i style={{ height: `${(d.enviados / max) * 100}%` }} />
+          <span>{i === serie.length - 1 ? "hoje" : diaCurto(d.dia)}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
-function Stat({ cor, icon, label, value, foot, spark }) {
+function Medidor({ enviados, falhas }) {
+  const t = enviados + falhas;
+  const pct = t ? enviados / t : 0;
+  const r = 56, c = 2 * Math.PI * r;
   return (
-    <div className={`stat ${cor}`}>
-      <div className="stat-head">
-        <span className="stat-ico"><Icon name={icon} size={18} /></span>
-        <span className="stat-label">{label}</span>
+    <div className="gauge">
+      <div className="gauge-ring">
+        <svg width="132" height="132" viewBox="0 0 132 132">
+          <circle cx="66" cy="66" r={r} fill="none" stroke="#24241e" strokeWidth="10" />
+          {t > 0 && (
+            <circle cx="66" cy="66" r={r} fill="none" stroke="var(--lime)" strokeWidth="10"
+              strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />
+          )}
+        </svg>
+        <div className="gauge-val">{t ? `${Math.round(pct * 100)}%` : "—"}</div>
       </div>
-      <div className="stat-value">{value}</div>
-      {foot && <div className="stat-foot">{foot}</div>}
-      <Spark data={spark} />
+      <div className="gauge-legend">
+        <span><i className="sq c-ok" />{enviados} ok</span>
+        <span><i className="sq c-err" />{falhas} falhas</span>
+      </div>
+    </div>
+  );
+}
+
+function Tile({ cor, icon, label, value, foot }) {
+  return (
+    <div className={`tile ${cor || ""}`}>
+      <div className="tile-top"><span>{label}</span><Icon name={icon} size={15} /></div>
+      <div className="tile-val">{value}</div>
+      <div className="tile-foot">{foot}</div>
     </div>
   );
 }
@@ -34,11 +62,13 @@ function Stat({ cor, icon, label, value, foot, spark }) {
 function Vazio({ icon, children }) {
   return (
     <div className="empty">
-      <Icon name={icon} size={30} />
+      <Icon name={icon} size={28} />
       <div>{children}</div>
     </div>
   );
 }
+
+const COR_STATUS = { enviado: "c-ok", erro: "c-err", flood: "c-err", peer_flood: "c-err" };
 
 export default function Dashboard() {
   const [s, setS] = useState(null);
@@ -47,7 +77,7 @@ export default function Dashboard() {
   async function carregar() {
     const [a, b] = await Promise.all([fetch("/api/stats"), fetch("/api/logs")]);
     setS(await a.json());
-    setUltimos((await b.json()).slice(0, 8));
+    setUltimos((await b.json()).slice(0, 7));
   }
   useEffect(() => {
     carregar();
@@ -56,78 +86,91 @@ export default function Dashboard() {
   }, []);
 
   const h = s?.hoje;
-  const tentativas = h ? h.enviados + h.falhas : 0;
-  const taxa = tentativas ? `${Math.round((h.enviados / tentativas) * 100)}%` : "—";
   const n = (v) => (s ? v : "…");
-  const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+  const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+  const semana = s ? s.serie.reduce((a, d) => a + d.enviados, 0) : 0;
 
   return (
     <Shell
-      title="Dashboard"
-      subtitle="Visão geral — hoje"
+      title="Quem voltou hoje"
+      subtitle="Reengajamentos disparados pelo motor, atualizado a cada 30s"
       actions={<button className="ghost" onClick={carregar}><Icon name="refresh" size={14} />Atualizar</button>}
     >
-      <div className="stats">
-        <Stat cor="c-ok" icon="send" label="Enviados hoje" value={n(h?.enviados)}
-          foot={s && `${h.telegram} telegram · ${h.email} e-mail`} spark={s?.serie.map((d) => d.enviados)} />
-        <Stat cor="c-err" icon="xcircle" label="Falhas hoje" value={n(h?.falhas)}
-          spark={s?.serie.map((d) => d.falhas)} />
-        <Stat cor="c-gray" icon="trend" label="Taxa de sucesso" value={s ? taxa : "…"}
-          foot={s && (tentativas ? `${tentativas} tentativas` : "Nenhum envio hoje")} />
-        <Stat cor="c-blue" icon="activity" label="Ignorados hoje" value={n(h?.ignorados)}
-          foot="duplicados e inativos" />
-        <Stat cor="c-warn" icon="users" label="Experts ativos" value={n(s?.experts.ativos)}
-          foot={s && s.experts.semSessao.length > 0 && `${s.experts.semSessao.length} sem sessão`} />
-        <Stat cor="c-gray" icon="grid" label="Experts cadastrados" value={n(s?.experts.total)} />
+      {s && s.experts.semSessao.length > 0 && (
+        <div className="alert">
+          <Icon name="alert" size={16} />
+          <span>
+            {s.experts.semSessao.length === 1 ? "1 expert ativo está" : `${s.experts.semSessao.length} experts ativos estão`} sem
+            sessão do Telegram: <b>{s.experts.semSessao.join(", ")}</b>
+          </span>
+          <Link href="/experts">Resolver →</Link>
+        </div>
+      )}
+
+      <div className="hero-grid">
+        <div className="card">
+          <div className="card-title"><Icon name="send" size={14} />enviados hoje<span className="right">últimos 7 dias</span></div>
+          <div className="hero">
+            <div>
+              <div className="big">{n(h?.enviados)}</div>
+              <div className="big-sub">
+                {s ? <><b>{h.telegram}</b> telegram · <b>{h.email}</b> e-mail · <b>{semana}</b> na semana</> : " "}
+              </div>
+            </div>
+            {s && <Barras serie={s.serie} />}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title"><Icon name="trend" size={14} />taxa de sucesso</div>
+          {s && <Medidor enviados={h.enviados} falhas={h.falhas} />}
+        </div>
       </div>
 
-      <div className="card">
-        <div className="card-title"><Icon name="bolt" size={14} />Desempenho por expert — hoje</div>
-        {s && s.porExpert.length === 0 && <Vazio icon="chart">Nenhum disparo registrado hoje</Vazio>}
-        {s && s.porExpert.length > 0 && (
-          <div className="list">
-            {s.porExpert.map((x) => {
-              const t = x.enviados + x.falhas;
-              return (
-                <div className="list-row" key={x.expert}>
-                  <span className="grow">{x.expert}</span>
-                  <span className="mono muted" style={{ fontSize: 12 }}>{x.enviados} ok · {x.falhas} falha</span>
-                  <span className="bar"><i style={{ width: `${t ? (x.enviados / t) * 100 : 0}%` }} /></span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <div className="tiles">
+        <Tile cor="c-err" icon="xcircle" label="falhas hoje" value={n(h?.falhas)} foot="flood, erro, bloqueio…" />
+        <Tile cor="c-info" icon="skip" label="ignorados hoje" value={n(h?.ignorados)} foot="duplicados e inativos" />
+        <Tile cor="c-ok" icon="users" label="experts ativos" value={n(s?.experts.ativos)}
+          foot={s && `de ${s.experts.total} cadastrados`} />
+        <Tile cor="c-warn" icon="lock" label="sem sessão" value={n(s?.experts.semSessao.length)}
+          foot={s && (s.experts.semSessao.length ? "precisam de atenção" : "tudo certo")} />
       </div>
 
       <div className="grid2">
         <div className="card">
-          <div className="card-title warn"><Icon name="users" size={14} />Atenção</div>
-          {s && s.experts.semSessao.length === 0 && <Vazio icon="check">Todos os experts ativos têm sessão</Vazio>}
-          {s && s.experts.semSessao.length > 0 && (
+          <div className="card-title"><Icon name="chart" size={14} />ranking de experts — hoje</div>
+          {s && s.porExpert.length === 0 && <Vazio icon="chart">Nenhum disparo registrado hoje</Vazio>}
+          {s && s.porExpert.length > 0 && (
             <div className="list">
-              {s.experts.semSessao.map((slug) => (
-                <div className="list-row" key={slug}>
-                  <span className="grow">{slug}</span>
-                  <span className="pill sem_sessao">sem sessão</span>
-                </div>
-              ))}
+              {s.porExpert.map((x, i) => {
+                const t = x.enviados + x.falhas;
+                return (
+                  <div className="list-row" key={x.expert} title={`${x.enviados} enviados · ${x.falhas} falhas`}>
+                    <span className="rank">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="grow">{x.expert}</span>
+                    <span className="mono muted" style={{ fontSize: 12 }}>{x.enviados}</span>
+                    <span className="bar">
+                      {t > 0 && <i style={{ width: `${(x.enviados / t) * 100}%` }} />}
+                      {x.falhas > 0 && <i className="f" style={{ width: `${(x.falhas / t) * 100}%` }} />}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
         <div className="card">
-          <div className="card-title ok"><Icon name="check" size={14} />Últimos envios</div>
+          <div className="card-title"><Icon name="activity" size={14} />atividade recente</div>
           {ultimos && ultimos.length === 0 && <Vazio icon="check">Nenhum envio registrado</Vazio>}
           {ultimos && ultimos.length > 0 && (
-            <div className="list">
+            <div className="list feed">
               {ultimos.map((r) => (
-                <div className="list-row" key={r.id}>
-                  <span className="mono muted" style={{ fontSize: 12 }}>{hora(r.criado_em)}</span>
-                  <span className="grow">{r.expert} <span className="muted">· {r.canal === "email" ? r.email : (r.username || r.user_id)}</span></span>
+                <div className={`list-row ${COR_STATUS[r.status] || "c-warn"}`} key={r.id}>
+                  <span className="mono muted" style={{ fontSize: 11.5 }}>{hora(r.criado_em)}</span>
+                  <span className="grow">{r.expert} <span className="muted">→ {r.canal === "email" ? r.email : (r.username || r.user_id)}</span></span>
                   <span className={`pill ${r.status}`}>{r.status}</span>
                 </div>
               ))}
-              <Link href="/logs" className="btn-link" style={{ marginTop: 12 }}>Ver histórico completo →</Link>
+              <Link href="/logs" className="btn-link" style={{ marginTop: 10 }}>ver histórico completo →</Link>
             </div>
           )}
         </div>
