@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "./icons";
-import { api, useMe, limparMe, podeGerir, PAPEIS } from "./ui";
+import { api, useMe, limparMe, podeGerir, PAPEIS, dialogo, DialogoHost } from "./ui";
 
 const ITENS = [
   { href: "/", label: "Visão geral", icon: "grid" },
@@ -41,13 +41,20 @@ function Seletor({ me }) {
     location.href = "/";
   }
   async function criar() {
-    const nome = prompt("Nome do novo workspace (ex.: nome da empresa ou do cliente)");
+    setAberto(false);
+    const nome = await dialogo({
+      titulo: "Novo workspace",
+      texto: "Um workspace separa experts, histórico, equipe e chave de API. Você será o dono.",
+      campo: { label: "Nome", placeholder: "ex.: nome da empresa ou do cliente" },
+      botao: "Criar workspace",
+      icone: "plus",
+    });
     if (!nome) return;
     try {
       await api("/api/workspaces", { method: "POST", body: { nome } });
       limparMe();
       location.href = "/";
-    } catch (e) { alert(e.message); }
+    } catch (e) { dialogo({ titulo: "Não foi possível criar", texto: e.message, soOk: true }); }
   }
 
   const ws = me?.workspace;
@@ -129,6 +136,7 @@ export default function Shell({ title, subtitle, actions, children }) {
             <button className="ghost" style={{ marginTop: 16 }} onClick={sair}><Icon name="logout" size={14} />Sair</button>
           </div>
         </div>
+        <DialogoHost />
       </div>
     );
   }
@@ -190,6 +198,7 @@ export default function Shell({ title, subtitle, actions, children }) {
           {children}
         </main>
       </div>
+      <DialogoHost />
     </div>
   );
 }

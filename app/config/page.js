@@ -55,7 +55,7 @@ export default function Config() {
   }
 
   async function apagar() {
-    const confirmar = confirmarNome(c.nome, `Apagar o workspace "${c.nome}"?`);
+    const confirmar = await confirmarNome(c.nome, `Apagar o workspace "${c.nome}"?`);
     if (!confirmar) return;
     try {
       await api("/api/workspace", { method: "DELETE", body: { confirmar } });

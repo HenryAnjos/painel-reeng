@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Shell from "../nav";
 import Icon from "../icons";
-import { api, useMe, podeGerir, Copiar, Msg, PAPEIS, Uso } from "../ui";
+import { api, useMe, podeGerir, Copiar, Msg, PAPEIS, Uso, dialogo } from "../ui";
 
 export default function Equipe() {
   const me = useMe();
@@ -37,7 +37,7 @@ export default function Equipe() {
   }
 
   const papelDe = (usuarioId, papel) => acao(() => api(`/api/equipe/${usuarioId}`, { method: "PATCH", body: { papel } }));
-  const remover = (m) => confirm(`Remover ${m.usuario.nome} do workspace?`) &&
+  const remover = async (m) => (await dialogo({ titulo: `Remover ${m.usuario.nome}?`, texto: "A pessoa perde o acesso a este workspace na hora. A conta dela continua existindo.", botao: "Remover", perigo: true })) &&
     acao(() => api(`/api/equipe/${m.usuario.id}`, { method: "DELETE" }));
   const revogar = (c) => acao(() => api(`/api/equipe/${c.id}?convite=1`, { method: "DELETE" }));
 

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Shell from "../nav";
 import Icon from "../icons";
-import { api, limparMe, Msg, confirmarNome } from "../ui";
+import { api, limparMe, Msg, confirmarNome, dialogo } from "../ui";
 
 export default function Plataforma() {
   const [rows, setRows] = useState(null);
@@ -12,7 +12,7 @@ export default function Plataforma() {
   useEffect(() => { carregar(); }, []);
 
   async function entrar(r) {
-    if (!confirm(`Entrar em "${r.nome}" como dono (modo suporte)?`)) return;
+    if (!(await dialogo({ titulo: `Entrar em "${r.nome}"?`, texto: "Você entra como dono em modo suporte, sem virar membro. Tudo que fizer vale para este cliente.", botao: "Entrar como dono", icone: "shield" }))) return;
     try {
       await api("/api/workspace/trocar", { method: "POST", body: { id: r.id } });
       limparMe();
@@ -21,7 +21,7 @@ export default function Plataforma() {
   }
 
   async function apagar(r) {
-    const confirmar = confirmarNome(r.nome, `Apagar o workspace "${r.nome}" do cliente?`);
+    const confirmar = await confirmarNome(r.nome, `Apagar o workspace "${r.nome}"?`);
     if (!confirmar) return;
     try {
       await api(`/api/admin/workspaces/${r.id}`, { method: "DELETE", body: { confirmar } });

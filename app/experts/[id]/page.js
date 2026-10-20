@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Shell from "../../nav";
 import Icon from "../../icons";
-import { api, useMe, podeGerir, Msg, Copiar } from "../../ui";
+import { api, useMe, podeGerir, Msg, Copiar, dialogo } from "../../ui";
 
 const SCRIPT_PC = `from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
@@ -180,12 +180,12 @@ export default function EditarExpert() {
   }
 
   async function removerSessao() {
-    if (!confirm("Desconectar a conta do Telegram deste expert? Ele para de enviar até ser conectado de novo.")) return;
+    if (!(await dialogo({ titulo: "Desconectar a conta do Telegram?", texto: "O expert para de enviar até ser conectado de novo.", botao: "Desconectar", perigo: true, icone: "logout" }))) return;
     setE(await api(`/api/experts/${id}`, { method: "PATCH", body: { limpar_sessao: true } }));
   }
 
   async function excluir() {
-    if (!confirm(`Excluir o expert "${e.slug}"? O histórico de envios continua guardado.`)) return;
+    if (!(await dialogo({ titulo: `Excluir o expert "${e.slug}"?`, texto: "A conta deixa de disparar. O histórico de envios continua guardado.", digitar: e.slug, botao: "Excluir expert", perigo: true }))) return;
     await api(`/api/experts/${id}`, { method: "DELETE" });
     router.push("/experts");
   }

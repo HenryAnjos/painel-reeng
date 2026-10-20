@@ -82,10 +82,78 @@ export function Uso({ usado, limite, rotulo }) {
   );
 }
 
-// Confirmacao de exclusao: a pessoa digita o nome. Retorna o texto ou null.
-export function confirmarNome(nome, oQue) {
-  const t = prompt(`${oQue}\n\nIsso apaga experts, histórico, equipe, convites e a chave de API. Não dá para desfazer.\n\nDigite o nome do workspace para confirmar:\n${nome}`);
-  if (t === null) return null;
-  if (t.trim() !== nome) { alert("Nome não confere. Nada foi apagado."); return null; }
-  return t.trim();
+// ---------- dialogos do painel (no lugar de confirm/prompt/alert) ----------
+// dialogo({ titulo, texto, botao, perigo, icone, digitar, campo, soOk })
+//   -> true/false; com `campo` -> texto digitado ou null.
+//   `digitar`: o botao so libera quando a pessoa digita exatamente esse texto.
+let abrirDialogo = null;
+export function dialogo(opts) {
+  return new Promise((resolve) => {
+    if (!abrirDialogo) return resolve(opts.campo ? null : false);
+    abrirDialogo({ ...opts, resolve });
+  });
+}
+
+export function DialogoHost() {
+  const [d, setD] = useState(null);
+  const [valor, setValor] = useState("");
+  useEffect(() => {
+    abrirDialogo = (o) => { setValor(""); setD(o); };
+    return () => { abrirDialogo = null; };
+  }, []);
+  useEffect(() => {
+    if (!d) return;
+    const esc = (e) => e.key === "Escape" && fechar(false);
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  });
+  if (!d) return null;
+
+  function fechar(ok) {
+    d.resolve(d.campo ? (ok ? valor.trim() : null) : ok);
+    setD(null);
+  }
+  const liberado = d.digitar ? valor.trim() === d.digitar : d.campo ? valor.trim() !== "" : true;
+
+  return (
+    <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && fechar(false)}>
+      <form className="modal" role="dialog" aria-modal="true" onSubmit={(e) => { e.preventDefault(); if (liberado) fechar(true); }}>
+        <div className={`modal-ico ${d.perigo ? "perigo" : ""}`}>
+          <Icon name={d.icone || (d.perigo ? "trash" : "alert")} size={18} />
+        </div>
+        <h3>{d.titulo}</h3>
+        {d.texto && <p>{d.texto}</p>}
+        {d.digitar && (
+          <>
+            <label>Digite <b className="mono">{d.digitar}</b> para confirmar</label>
+            <input autoFocus value={valor} onChange={(e) => setValor(e.target.value)} autoComplete="off" />
+          </>
+        )}
+        {d.campo && (
+          <>
+            <label>{d.campo.label}</label>
+            <input autoFocus value={valor} placeholder={d.campo.placeholder} onChange={(e) => setValor(e.target.value)} />
+          </>
+        )}
+        <div className="modal-acoes">
+          {!d.soOk && <button type="button" className="ghost" onClick={() => fechar(false)}>Cancelar</button>}
+          <button autoFocus={!d.digitar && !d.campo} className={d.perigo ? "perigo-solid" : ""} disabled={!liberado}>
+            {d.botao || (d.soOk ? "Ok" : "Confirmar")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Confirmacao de exclusao de workspace: a pessoa digita o nome.
+export async function confirmarNome(nome, titulo) {
+  const ok = await dialogo({
+    titulo,
+    texto: "Isso apaga experts, histórico, equipe, convites e a chave de API deste workspace. Não dá para desfazer.",
+    digitar: nome,
+    botao: "Apagar workspace",
+    perigo: true,
+  });
+  return ok ? nome : null;
 }

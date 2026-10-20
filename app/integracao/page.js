@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Shell from "../nav";
 import Icon from "../icons";
-import { api, Copiar, Msg } from "../ui";
+import { api, Copiar, Msg, dialogo } from "../ui";
 
 const STATUS = [
   ["enviado", "áudio + texto entregues"],
@@ -72,10 +72,10 @@ export default function Integracao() {
   useEffect(() => { api("/api/workspace").then(setWs); }, []);
 
   async function gerar() {
-    const aviso = ws.api_key_prefixo
-      ? "Gerar uma nova chave? A chave atual para de funcionar na hora — atualize o n8n em seguida."
-      : "Gerar a chave de API deste workspace?";
-    if (!confirm(aviso)) return;
+    const ok = await dialogo(ws.api_key_prefixo
+      ? { titulo: "Gerar uma nova chave?", texto: "A chave atual para de funcionar na hora. Atualize o cabeçalho x-api-key no seu CRM logo em seguida.", botao: "Gerar nova chave", perigo: true, icone: "key" }
+      : { titulo: "Gerar a chave de API?", texto: "Ela aparece uma única vez. Copie e guarde no seu CRM.", botao: "Gerar chave", icone: "key" });
+    if (!ok) return;
     setMsg(null);
     try {
       const r = await api("/api/workspace/chave", { method: "POST" });
