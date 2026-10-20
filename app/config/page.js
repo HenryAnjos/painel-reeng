@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Shell from "../nav";
 import Icon from "../icons";
-import { api, limparMe, Msg, Uso } from "../ui";
+import { api, limparMe, Msg, Uso, useMe, confirmarNome } from "../ui";
 
 const PLANOS = [
   ["starter", "Starter", "3 experts · 3 pessoas"],
@@ -21,6 +21,7 @@ function Num({ label, help, value, onChange }) {
 }
 
 export default function Config() {
+  const me = useMe();
   const [c, setC] = useState(null);
   const [msg, setMsg] = useState(null);
   const [salvando, setSalvando] = useState(false);
@@ -51,6 +52,16 @@ export default function Config() {
       setMsg({ texto: x.message });
     }
     setSalvando(false);
+  }
+
+  async function apagar() {
+    const confirmar = confirmarNome(c.nome, `Apagar o workspace "${c.nome}"?`);
+    if (!confirmar) return;
+    try {
+      await api("/api/workspace", { method: "DELETE", body: { confirmar } });
+      limparMe();
+      location.href = "/";
+    } catch (x) { setMsg({ texto: x.message }); }
   }
 
   if (!c) return (<Shell title="Configurações"><p className="muted">Carregando...</p></Shell>);
@@ -98,6 +109,15 @@ export default function Config() {
             </div>
             <p className="help">Para mudar de plano, fale com o suporte.</p>
           </div>
+          {me?.papel === "dono" && (
+            <div className="card">
+              <div className="card-title warn"><Icon name="trash" size={14} />zona de perigo</div>
+              <p className="help" style={{ marginTop: 0, marginBottom: 12 }}>
+                Apaga este workspace e tudo dele: experts, histórico, equipe, convites e a chave de API. Não dá para desfazer.
+              </p>
+              <button type="button" className="danger" onClick={apagar}><Icon name="trash" size={14} />Apagar workspace</button>
+            </div>
+          )}
         </div>
       </div>
       <div className="row">

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Shell from "../nav";
 import Icon from "../icons";
-import { api, limparMe, Msg } from "../ui";
+import { api, limparMe, Msg, confirmarNome } from "../ui";
 
 export default function Plataforma() {
   const [rows, setRows] = useState(null);
@@ -17,6 +17,16 @@ export default function Plataforma() {
       await api("/api/workspace/trocar", { method: "POST", body: { id: r.id } });
       limparMe();
       location.href = "/";
+    } catch (x) { setMsg({ texto: x.message }); }
+  }
+
+  async function apagar(r) {
+    const confirmar = confirmarNome(r.nome, `Apagar o workspace "${r.nome}" do cliente?`);
+    if (!confirmar) return;
+    try {
+      await api(`/api/admin/workspaces/${r.id}`, { method: "DELETE", body: { confirmar } });
+      limparMe();
+      carregar();
     } catch (x) { setMsg({ texto: x.message }); }
   }
 
@@ -61,7 +71,10 @@ export default function Plataforma() {
                       </select>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <button className="ghost sm" onClick={() => entrar(r)}><Icon name="shield" size={13} />Entrar como dono</button>
+                      <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                        <button className="ghost sm" onClick={() => entrar(r)}><Icon name="shield" size={13} />Entrar como dono</button>
+                        <button className="icon-btn" title="Apagar workspace" onClick={() => apagar(r)}><Icon name="trash" size={14} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}

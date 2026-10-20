@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { sbUpdate, sbCount } from "../../../lib/supabase";
-import { contexto, wsPublico, erro } from "../../../lib/auth";
+import { sbUpdate, sbCount, sbDelete } from "../../../lib/supabase";
+import { contexto, wsPublico, erro, COOKIE_WS } from "../../../lib/auth";
 import { plano } from "../../../lib/planos";
 
 export async function GET() {
@@ -41,4 +41,17 @@ export async function PATCH(req) {
   }
   const [ws] = await sbUpdate("workspaces", { id: `eq.${c.workspace.id}` }, data);
   return NextResponse.json(wsPublico(ws));
+}
+
+// Apaga o workspace atual e tudo dele (experts, envios, membros, convites:
+// on delete cascade). So o dono, confirmando com o nome exato.
+export async function DELETE(req) {
+  const c = await contexto("dono");
+  if (c.erro) return c.erro;
+  const { confirmar } = await req.json().catch(() => ({}));
+  if (String(confirmar || "").trim() !== c.workspace.nome) return erro(400, "Digite o nome do workspace exatamente para confirmar");
+  await sbDelete("workspaces", { id: `eq.${c.workspace.id}` });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.delete(COOKIE_WS);
+  return res;
 }

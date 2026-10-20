@@ -81,3 +81,11 @@ export function Uso({ usado, limite, rotulo }) {
     </div>
   );
 }
+
+// Confirmacao de exclusao: a pessoa digita o nome. Retorna o texto ou null.
+export function confirmarNome(nome, oQue) {
+  const t = prompt(`${oQue}\n\nIsso apaga experts, histórico, equipe, convites e a chave de API. Não dá para desfazer.\n\nDigite o nome do workspace para confirmar:\n${nome}`);
+  if (t === null) return null;
+  if (t.trim() !== nome) { alert("Nome não confere. Nada foi apagado."); return null; }
+  return t.trim();
+}
