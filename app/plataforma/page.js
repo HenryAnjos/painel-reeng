@@ -11,6 +11,15 @@ export default function Plataforma() {
   const carregar = () => api("/api/admin/workspaces").then(setRows).catch((x) => setMsg({ texto: x.message }));
   useEffect(() => { carregar(); }, []);
 
+  async function entrar(r) {
+    if (!confirm(`Entrar em "${r.nome}" como dono (modo suporte)?`)) return;
+    try {
+      await api("/api/workspace/trocar", { method: "POST", body: { id: r.id } });
+      limparMe();
+      location.href = "/";
+    } catch (x) { setMsg({ texto: x.message }); }
+  }
+
   async function mudarPlano(id, plano) {
     try {
       await api(`/api/admin/workspaces/${id}`, { method: "PATCH", body: { plano } });
@@ -35,7 +44,7 @@ export default function Plataforma() {
         {rows && (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Workspace</th><th>Criado em</th><th>Pessoas</th><th>Experts</th><th>Enviados no mês</th><th>Plano</th></tr></thead>
+              <thead><tr><th>Workspace</th><th>Criado em</th><th>Pessoas</th><th>Experts</th><th>Enviados no mês</th><th>Plano</th><th></th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
@@ -50,6 +59,9 @@ export default function Plataforma() {
                         <option value="pro">Pro</option>
                         <option value="scale">Scale</option>
                       </select>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button className="ghost sm" onClick={() => entrar(r)}><Icon name="shield" size={13} />Entrar como dono</button>
                     </td>
                   </tr>
                 ))}

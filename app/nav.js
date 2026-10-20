@@ -57,7 +57,7 @@ function Seletor({ me }) {
         <span className="ws-av">{iniciais(ws?.nome || "…")}</span>
         <span className="ws-txt">
           <b>{ws?.nome || "…"}</b>
-          <small>{ws ? `${ws.limites.nome} · ${PAPEIS[me.papel]}` : " "}</small>
+          <small>{ws ? `${ws.limites.nome} · ${me.suporte ? "Suporte" : PAPEIS[me.papel]}` : " "}</small>
         </span>
         <Icon name="chevron" size={14} />
       </button>
@@ -167,6 +167,17 @@ export default function Shell({ title, subtitle, actions, children }) {
             </Link>
           )}
         </header>
+        {me?.suporte && (
+          <div className="suporte">
+            <Icon name="shield" size={15} />
+            <span>Modo suporte: você está em <b>{me.workspace.nome}</b> como dono. Tudo que fizer vale para este cliente.</span>
+            <button className="sm" onClick={async () => {
+              await api("/api/workspace/trocar", { method: "POST", body: { id: null } });
+              limparMe();
+              location.href = "/plataforma";
+            }}>Sair do modo suporte</button>
+          </div>
+        )}
         <main className="content">
           <div className="page-head">
             <div>

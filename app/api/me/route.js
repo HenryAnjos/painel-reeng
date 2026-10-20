@@ -12,6 +12,7 @@ export async function GET() {
   return NextResponse.json({
     usuario: c.usuario,
     papel: c.papel,
+    suporte: !!c.suporte,
     workspace: { ...wsPublico(c.workspace), limites: plano(c.workspace.plano) },
     workspaces: c.membros.map((m) => ({ id: m.workspace.id, nome: m.workspace.nome, plano: m.workspace.plano, papel: m.papel })),
   });
