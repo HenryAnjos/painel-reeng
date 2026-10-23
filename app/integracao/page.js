@@ -7,6 +7,7 @@ import { api, Copiar, Msg, dialogo, useMe } from "../ui";
 
 const STATUS = [
   ["enviado", "mensagens do expert entregues"],
+  ["processando", "aceito; o envio termina em segundo plano e o resultado aparece no Histórico"],
   ["sem_conteudo", "o expert não tem mensagens configuradas"],
   ["duplicado", "já recebeu dentro da janela de deduplicação"],
   ["nao_resolvido", "sem username e sem grupo em comum: não achou o lead"],
