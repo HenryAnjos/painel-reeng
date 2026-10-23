@@ -8,6 +8,13 @@ const STATUS = ["enviado", "duplicado", "nao_resolvido", "bloqueado", "flood", "
   "sem_sessao", "limite_diario", "expert_inativo", "erro"];
 const VAZIO = { q: "", expert: "", canal: "", status: "", de: "", ate: "" };
 
+// "username" que nao e um @ de verdade (ex.: nome de exibicao vindo do CRM)
+// nao identifica ninguem: mostra o user_id
+const USERNAME = /^[A-Za-z][A-Za-z0-9_]{3,31}$/;
+function destinoTg(r) {
+  return r.username && USERNAME.test(r.username) ? `@${r.username} · ${r.user_id}` : r.user_id;
+}
+
 export default function Logs() {
   const [f, setF] = useState(VAZIO);
   const [aplicado, setAplicado] = useState(VAZIO);
@@ -81,7 +88,7 @@ export default function Logs() {
                       <td className="muted mono" style={{ whiteSpace: "nowrap" }}>{fmt(r.criado_em)}</td>
                       <td className="mono">{r.expert}</td>
                       <td>{r.canal}</td>
-                      <td>{r.canal === "email" ? r.email : (r.username ? `@${r.username}` : r.user_id)}</td>
+                      <td>{r.canal === "email" ? r.email : destinoTg(r)}</td>
                       <td><span className={`pill ${r.status}`}>{r.status}</span></td>
                       <td className="muted">{r.detalhe || ""}</td>
                     </tr>
